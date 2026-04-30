@@ -20,7 +20,7 @@ async def download_video(url):
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     url = update.message.text
     # Supports Instagram and YouTube
-    if "instagram.com" in url or "youtube.com" or "tiktok.com" in url: in url or "youtu.be" in url:
+    if "instagram.com" in url or "youtube.com"or"tiktok.com" in url: in url or "youtu.be" in url:
         await update.message.reply_text("Processing your link... ⏳")
         try:
             await download_video(url)
