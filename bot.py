@@ -1,42 +1,50 @@
 import os
-import asyncio
-from pyrogram import Client, filters
-from yt_dlp import YoutubeDL
+import logging
+from telegram import Update
+from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes
+import yt_dlp
 
-# إعدادات البوت
-API_ID = os.getenv("API_ID")
-API_HASH = os.getenv("API_HASH")
-BOT_TOKEN = os.getenv("BOT_TOKEN")
+# التوكن الخاص بك
+TOKEN = "8640929836:AAEV-p30frbxqNSCXWLw9jQLTRsBCBlaYNU"
 
-app = Client("my_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
+# إعدادات التحميل - جودة كويسة وبدون وجع دماغ
+YDL_OPTIONS = {
+    'format': 'bestvideo+bestaudio/best',
+    'outtmpl': 'video_%(id)s.%(ext)s',
+    'quiet': True,
+    'no_warnings': True,
+}
 
-@app.on_message(filters.command("start"))
-async def start(client, message):
-    await message.reply_text("أهلاً بك! أرسل لي رابط فيديو من يوتيوب، تيك توك، أو انستجرام وسأقوم بتحميله لك.")
-
-@app.on_message(filters.text & ~filters.command("start"))
-async def download_video(client, message):
-    url = message.text
-    msg = await message.reply_text("جاري المعالجة... انتظر قليلاً ⏳")
+async def download_and_send(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    url = update.message.text
+    chat_id = update.message.chat_id
     
-    try:
-        ydl_opts = {
-            'format': 'best',
-            'outtmpl': 'video.mp4',
-            'quiet': True
-        }
-        
-        with YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-            title = info.get('title', 'Video')
-            
-        await message.reply_video(video="video.mp4", caption=f"<b>تم التحميل بنجاح ✅</b>\n\n<b>العنوان:</b> {title}", parse_mode="html")
-        await msg.delete()
-        
-        if os.path.exists("video.mp4"):
-            os.remove("video.mp4")
-            
-    except Exception as e:
-        await msg.edit_text(f"حدث خطأ أثناء التحميل: {str(e)}")
+    # رسالة بسيطة عشان تعرف إنه شغال
+    status_msg = await update.message.reply_text("جاري التحميل... 🚀")
 
-app.run()
+    try:
+        with yt_dlp.YoutubeDL(YDL_OPTIONS) as ydl:
+            info = ydl.extract_info(url, download=True)
+            filename = ydl.prepare_filename(info)
+            
+            # لو الملف نزل بصيغة مختلفة (زي mkv) يفضل نبعته كفيديو
+            with open(filename, 'rb') as video:
+                await context.bot.send_video(chat_id=chat_id, video=video)
+            
+            # مسح الملف من السيرفر بعد الإرسال عشان الزحمة
+            os.remove(filename)
+            await status_msg.delete()
+
+    except Exception:
+        # هنا "يلمزك" بهدوء لو الرابط بايظ بدل ما يبعت كود خطأ طويل
+        await status_msg.edit_text("الرابط ده فيه مشكلة أو غير مدعوم حالياً.")
+
+if __name__ == '__main__':
+    # تشغيل البوت
+    app = ApplicationBuilder().token(TOKEN).build()
+    
+    # بيسمع لأي رسالة فيها رابط
+    app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), download_and_send))
+    
+    print("البوت شغال دلوقتي.. ارسل الرابط مباشرة.")
+    app.run_polling()
