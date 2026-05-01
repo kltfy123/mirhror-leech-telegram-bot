@@ -1,4 +1,4 @@
-python-telegram-bot
-yt-dlp
-tiktok_scraper
-pyrigram
+scraper-telegram-bot
+yt-dlptiktoy
+tiktokapipy
+pyrogram
