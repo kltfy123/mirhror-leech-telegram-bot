@@ -3,42 +3,58 @@ import asyncio
 from pyrogram import Client, filters
 from yt_dlp import YoutubeDL
 
-# إعدادات البوت (ضع بياناتك هنا)
+# --- إعدادات البوت ---
 API_ID = "YOUR_API_ID"        # احصل عليه من my.telegram.org
 API_HASH = "YOUR_API_HASH"    # احصل عليه من my.telegram.org
 BOT_TOKEN = "8640929836:AAEV-p30frbxqNSCXWLw9jQLTRsBCBlaYNU"
 
-app = Client("my_downloader_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
+app = Client("tiktok_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
-@app.on_message(filters.regex(r"(http|https)://"))
-async def download_video(client, message):
+# فلتر للتأكد أن الرابط يخص تيك توك فقط
+tiktok_filter = filters.regex(r"(?i)(?:tiktok\.com|vt\.tiktok\.com)")
+
+@app.on_message(filters.private & tiktok_filter)
+async def tiktok_downloader(client, message):
     url = message.text
-    sent_msg = await message.reply("⏳ جاري معالجة الرابط وتحميل الفيديو...")
+    status = await message.reply("⏳ جاري معالجة فيديو تيك توك...")
 
-    # إعدادات التحميل عبر yt-dlp
+    # إعدادات yt-dlp لتحميل الفيديو بدون علامة مائية (إن أمكن)
     ydl_opts = {
         'format': 'best',
-        'outtmpl': 'downloaded_video.%(ext)s',
+        'outtmpl': 'downloads/%(id)s.%(ext)s',
         'quiet': True,
+        'no_warnings': True,
     }
 
     try:
         loop = asyncio.get_event_loop()
-        # تشغيل التحميل في خلفية البرنامج لعدم تجميد البوت
-        info = await loop.run_in_executor(None, lambda: YoutubeDL(ydl_opts).extract_info(url, download=True))
-        filename = YoutubeDL(ydl_opts).prepare_filename(info)
-
-        # إرسال الفيديو إلى المستخدم
-        await message.reply_video(video=filename, caption=f"✅ تم التحميل: {info.get('title', 'Video')}")
         
-        # حذف الفيديو من الخادم بعد الإرسال لتوفير المساحة
-        if os.path.exists(filename):
-            os.remove(filename)
+        with YoutubeDL(ydl_opts) as ydl:
+            # استخراج البيانات والتحميل
+            info = await loop.run_in_executor(None, lambda: ydl.extract_info(url, download=True))
+            file_path = ydl.prepare_filename(info)
+            description = info.get('title', 'TikTok Video')
+
+        await status.edit("📤 جاري رفع الفيديو...")
+
+        # إرسال الفيديو للبوت
+        await message.reply_video(
+            video=file_path,
+            caption=f"✅ تم التحميل من تيك توك\n\n📝: {description[:100]}..."
+        )
+
+        # حذف الملف من السيرفر بعد الإرسال
+        if os.path.exists(file_path):
+            os.remove(file_path)
             
-        await sent_msg.delete()
+        await status.delete()
 
     except Exception as e:
-        await sent_msg.edit(f"❌ حدث خطأ أثناء التحميل: {str(e)}")
+        await status.edit(f"❌ حدث خطأ:\n`{str(e)}`")
 
-print("البوت يعمل الآن...")
+@app.on_message(filters.private & ~tiktok_filter & filters.text)
+async def not_tiktok(client, message):
+    await message.reply("⚠️ من فضلك أرسل رابط تيك توك صحيح فقط.")
+
+print("🚀 بوت تحميل تيك توك يعمل الآن...")
 app.run()
