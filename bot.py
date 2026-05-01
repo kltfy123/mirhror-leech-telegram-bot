@@ -1,42 +1,42 @@
 import os
 import asyncio
-from telegram import Update
-from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
-import yt_dlp
+from pyrogram import Client, filters
+from yt_dlp import YoutubeDL
 
-# Your Token has been added here
-TOKEN = '8640929836:AAEV-p30frbxqNSCXWLw9jQLTRsBCBlaYNU'
+# إعدادات البوت
+API_ID = os.getenv("API_ID")
+API_HASH = os.getenv("API_HASH")
+BOT_TOKEN = os.getenv("BOT_TOKEN")
 
-async def download_video(url):
-    ydl_opts = {
-        'format': 'best',
-        'outtmpl': 'video.mp4',
-        'quiet': True,
-        'no_warnings': True,
-    }
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        ydl.download([url])
+app = Client("my_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    url = update.message.text
-    # Supports Instagram and YouTube
-    if in url"instagram.com" in url or "youtube.com" or "tiktok.com" in url: in url or "youtu.be" in url:
-        await update.message.reply_text("Processing your link... ⏳")
-        try:
-            await download_video(url)
-            if os.path.exists('video.mp4'):
-                with open('video.mp4', 'rb') as video_file:
-                    await update.message.reply_video(video=video_file)
-                os.remove('video.mp4')
-            else:
-                await update.message.reply_text("Failed to find the downloaded video.")
-        except Exception as e:
-            await update.message.reply_text(f"Error occurred: {e}")
-    else:
-        await update.message.reply_text("Please send a valid Instagram or YouTube link.")
+@app.on_message(filters.command("start"))
+async def start(client, message):
+    await message.reply_text("أهلاً بك! أرسل لي رابط فيديو من يوتيوب، تيك توك، أو انستجرام وسأقوم بتحميله لك.")
 
-if __name__ == '__main__':
-    app = ApplicationBuilder().token(TOKEN).build()
-    app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
-    print("Bot is starting...")
-    app.run_polling()
+@app.on_message(filters.text & ~filters.command("start"))
+async def download_video(client, message):
+    url = message.text
+    msg = await message.reply_text("جاري المعالجة... انتظر قليلاً ⏳")
+    
+    try:
+        ydl_opts = {
+            'format': 'best',
+            'outtmpl': 'video.mp4',
+            'quiet': True
+        }
+        
+        with YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            title = info.get('title', 'Video')
+            
+        await message.reply_video(video="video.mp4", caption=f"<b>تم التحميل بنجاح ✅</b>\n\n<b>العنوان:</b> {title}", parse_mode="html")
+        await msg.delete()
+        
+        if os.path.exists("video.mp4"):
+            os.remove("video.mp4")
+            
+    except Exception as e:
+        await msg.edit_text(f"حدث خطأ أثناء التحميل: {str(e)}")
+
+app.run()
