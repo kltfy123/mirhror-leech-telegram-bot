@@ -1,1 +1,3 @@
-pip install pyrogram tgcrypto yt-dlp
+pyrogram
+tgcrypto
+yt_dlp
