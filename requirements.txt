@@ -1,4 +1,4 @@
-python-telegram-bot==20.0
+botapipyapipytoy-telegram-bot==20.0
 yt-dlptiktoy
-tiktokapipy
+tibotkapipy
 bot
