@@ -1,4 +1,1 @@
-python-telegram-bot
-yt_dlp
-tiktokapipy
-pyrogram
+pip install pyrogram tgcrypto yt-dlp
